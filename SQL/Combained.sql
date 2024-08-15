@@ -232,9 +232,3 @@ FinalQuery AS (
 )
 SELECT * FROM FinalQuery
 ORDER BY user_id ASC;
-
-
-SELECT seats, base_fare_usd FROM flights
-WHERE destination = 'london'
-AND origin_airport = 'DEN'
-ORDER BY seats

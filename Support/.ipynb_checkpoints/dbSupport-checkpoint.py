@@ -2,7 +2,7 @@
 
 import pandas as pd
 import sqlalchemy as sa
-
+import os
 
 # creating connections
 engine = sa.create_engine("postgresql://Test:bQNxVzJL4g6u@ep-noisy-flower-846766-pooler.us-east-2.aws.neon.tech/TravelTide")
@@ -15,6 +15,7 @@ def execute_sql_file(sql_file_path):
     :param sql_file_path: path to the SQL file.
     :param db_connections: A Connections object to the database
     """
+       
     #Read the SQL file
     with open(sql_file_path, 'r') as file:
         sql_query = file.read()
