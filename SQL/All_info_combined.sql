@@ -13,11 +13,52 @@ FilteredSessions AS (
 UserTravelSpendSummary AS (
   SELECT
     u.user_id,
-    AVG(fs.hotel_discount_amount * (h.hotel_per_room_usd * h.rooms)) AS ADS_hotel,
-    COALESCE(SUM(h.hotel_per_room_usd * h.rooms), 0) AS total_hotel_usd_spent,
-    COALESCE(SUM(f.base_fare_usd), 0) AS total_flight_usd_spent,
-    COALESCE(SUM(h.hotel_per_room_usd * h.rooms) + SUM(f.base_fare_usd), 0) AS total_usd_spent,
-  SUM(
+
+    -- Calculate ADS for hotels considering discounts
+    AVG(
+      CASE 
+        WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd *  fs.hotel_discount_amount ) * h.rooms
+        ELSE h.hotel_per_room_usd * h.rooms
+      END
+    ) AS ADS_hotel,
+
+    -- Calculate total hotel spend considering discounts
+    COALESCE(
+      SUM(
+        CASE 
+          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd *  fs.hotel_discount_amount ) * h.rooms
+          ELSE h.hotel_per_room_usd * h.rooms
+        END
+      ), 0
+    ) AS total_hotel_usd_spent,
+
+    -- Calculate total flight spend considering discounts
+    COALESCE(
+      SUM(
+        CASE 
+          WHEN fs.flight_discount = TRUE THEN f.base_fare_usd *  fs.flight_discount_amount 
+          ELSE f.base_fare_usd
+        END
+      ), 0
+    ) AS total_flight_usd_spent,
+
+    -- Calculate total spend considering discounts
+    COALESCE(
+      SUM(
+        CASE 
+          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * fs.hotel_discount_amount ) * h.rooms
+          ELSE h.hotel_per_room_usd * h.rooms
+        END
+      ) + 
+      SUM(
+        CASE 
+          WHEN fs.flight_discount = TRUE THEN f.base_fare_usd * fs.flight_discount_amount 
+          ELSE f.base_fare_usd
+        END
+      ), 0
+    ) AS total_usd_spent,
+
+    SUM(
       CASE
         WHEN h.nights < 0 THEN 1
         ELSE h.nights

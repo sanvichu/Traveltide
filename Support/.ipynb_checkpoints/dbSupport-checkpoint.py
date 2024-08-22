@@ -3,9 +3,14 @@
 import pandas as pd
 import sqlalchemy as sa
 import os
+from dotenv import load_dotenv
+
+# Get the DB URL from environment file in order execute you must have the .env file in your root folder with URL string
+load_dotenv()  # This loads the .env file
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # creating connections
-engine = sa.create_engine("postgresql://Test:bQNxVzJL4g6u@ep-noisy-flower-846766-pooler.us-east-2.aws.neon.tech/TravelTide")
+engine = sa.create_engine(DATABASE_URL)
 connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
 
 def execute_sql_file(sql_file_path):
