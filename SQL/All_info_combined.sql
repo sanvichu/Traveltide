@@ -10,24 +10,49 @@ FilteredSessions AS (
   FROM sessions s
   JOIN UserSessions us ON s.user_id = us.user_id
 ),
+UserNightsSummary AS (
+  SELECT 
+    u.user_id,
+    -- Calculate average and total nights per user
+    COALESCE(
+      AVG(
+        CASE
+          WHEN h.nights < 0 THEN 0
+          ELSE h.nights
+        END
+      ), 0
+    ) AS avg_nights,
+    SUM(
+      CASE
+        WHEN h.nights < 0 THEN 1
+        ELSE h.nights
+      END
+    ) AS total_nights
+  FROM 
+    FilteredSessions fs  
+    JOIN users u ON fs.user_id = u.user_id
+  LEFT JOIN hotels h ON h.trip_id = fs.trip_id
+  GROUP BY u.user_id
+),    
 UserTravelSpendSummary AS (
   SELECT
     u.user_id,
 
-    -- Calculate ADS for hotels considering discounts
+ 
+    -- Calculate ADS for hotels considering discounts and total nights
     AVG(
       CASE 
-        WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd *  fs.hotel_discount_amount ) * h.rooms
-        ELSE h.hotel_per_room_usd * h.rooms
+        WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * fs.hotel_discount_amount * h.rooms * uns.total_nights)
+        ELSE (h.hotel_per_room_usd * h.rooms * uns.total_nights)
       END
     ) AS ADS_hotel,
 
-    -- Calculate total hotel spend considering discounts
+    -- Calculate total hotel spend considering discounts and total nights
     COALESCE(
       SUM(
         CASE 
-          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd *  fs.hotel_discount_amount ) * h.rooms
-          ELSE h.hotel_per_room_usd * h.rooms
+          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * fs.hotel_discount_amount * h.rooms * uns.total_nights)
+          ELSE (h.hotel_per_room_usd * h.rooms * uns.total_nights)
         END
       ), 0
     ) AS total_hotel_usd_spent,
@@ -36,18 +61,18 @@ UserTravelSpendSummary AS (
     COALESCE(
       SUM(
         CASE 
-          WHEN fs.flight_discount = TRUE THEN f.base_fare_usd *  fs.flight_discount_amount 
+          WHEN fs.flight_discount = TRUE THEN f.base_fare_usd * fs.flight_discount_amount 
           ELSE f.base_fare_usd
         END
       ), 0
     ) AS total_flight_usd_spent,
 
-    -- Calculate total spend considering discounts
+    -- Calculate total spend considering discounts and total nights
     COALESCE(
       SUM(
         CASE 
-          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * fs.hotel_discount_amount ) * h.rooms
-          ELSE h.hotel_per_room_usd * h.rooms
+          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * fs.hotel_discount_amount * h.rooms * uns.total_nights)
+          ELSE (h.hotel_per_room_usd * h.rooms * uns.total_nights)
         END
       ) + 
       SUM(
@@ -56,19 +81,13 @@ UserTravelSpendSummary AS (
           ELSE f.base_fare_usd
         END
       ), 0
-    ) AS total_usd_spent,
-
-    SUM(
-      CASE
-        WHEN h.nights < 0 THEN 1
-        ELSE h.nights
-      END
-    ) AS total_nights
+    ) AS total_usd_spent
   FROM 
-   FilteredSessions fs  
-   JOIN users u ON fs.user_id = u.user_id
+    FilteredSessions fs  
+    JOIN users u ON fs.user_id = u.user_id
   LEFT JOIN flights f ON f.trip_id = fs.trip_id
   LEFT JOIN hotels h ON h.trip_id = fs.trip_id
+  LEFT JOIN UserNightsSummary uns ON u.user_id = uns.user_id -- Join with UserNightsSummary to get total nights
   GROUP BY u.user_id
 ),
 distance AS (
@@ -171,7 +190,7 @@ UserDiscountMetrics AS (
         ELSE NULL
       END
     ) AS total_together,
-    COUNT(fs.trip_id) AS total_trips,  
+    COUNT( fs.trip_id) AS total_trips,  
     COUNT(fs.trip_id IS NOT NULL) AS total_sessions,
     AVG(fs.page_clicks) AS average_clicks,
     SUM(fs.page_clicks) AS total_clicks,  
@@ -275,7 +294,8 @@ FinalQuery AS (
     utss.total_hotel_usd_spent,
     utss.total_flight_usd_spent,
     utss.total_hotel_usd_spent + utss.total_flight_usd_spent AS total_usd_spent,
-  	utss.total_nights,
+  	uns.total_nights,
+    uns.avg_nights,
     COALESCE(stm.scaled_hotel_ads, 0) AS scaled_hotel_ads,
     COALESCE(sm.ads_per_km, 0) AS ads_per_km,
     COALESCE(sm.scaled_ads_per_km, 0) AS scaled_ads_per_km,
@@ -292,6 +312,7 @@ FinalQuery AS (
   LEFT JOIN UserBehaviorIndices ubi ON fs.user_id = ubi.user_id
   LEFT JOIN ScaledTravelMetrics stm ON fs.user_id = stm.user_id
   LEFT JOIN scaled_metrics sm ON fs.user_id = sm.user_id
+  LEFT JOIN UserNightsSummary uns ON fs.user_id = uns.user_id
   GROUP BY 
     u.user_id, u.birthdate, u.gender, u.married, u.has_children, u.home_country, u.home_city, 
     udm.total_trips, udm.total_cancellations, udm.total_sessions, ubi.total_cancellation_rate,
@@ -299,8 +320,8 @@ FinalQuery AS (
     ubi.conversion_rate, udm.average_clicks, udm.total_clicks, ubi.click_efficiency, 
     udm.average_hotel_discount, udm.average_flight_discount, udm.flight_discount_proportion,  
     udm.hotel_discount_proportion, udm.both_discount_proportion, ubi.discount_responsiveness,
-    utss.total_hotel_usd_spent, utss.total_flight_usd_spent,utss.total_nights, stm.scaled_hotel_ads,  
-    sm.ads_per_km, sm.scaled_ads_per_km
+    utss.total_hotel_usd_spent, utss.total_flight_usd_spent,uns.total_nights, stm.scaled_hotel_ads,  
+    sm.ads_per_km, sm.scaled_ads_per_km, uns.avg_nights
 )
 SELECT * FROM FinalQuery
 ORDER BY user_id ASC;

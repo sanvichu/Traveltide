@@ -4,13 +4,12 @@ import plotly.io as pio
 from plotly.subplots import make_subplots
 import os
 import pandas as pd
-
+import numpy as np
 # To resolve the git dynamic image rendring issue, for ploty chart, i enable it as a static image. you can disable to create Dynamic charts in your notbook
 pio.renderers.default = "png"
 
-current_dir = os.getcwd()
-img_dir_path =  os.path.join(current_dir, 'Images')
 
+# Plot enblow curve
 def plot_elbow_curve(model, data, cluster_ranges):
     inertia_values = []
     
@@ -42,8 +41,8 @@ def plot_elbow_curve(model, data, cluster_ranges):
     # Show the plot
     fig.show()
 
-
-def plot_correlation_heatmap(correlation_matrix, img_dir_path, file_name='CorrelationVerification.png', title='Correlation Matrix of Metrics'):
+# Correlation heatmap between scaled values
+def plot_correlation_heatmap(correlation_matrix,  title='Correlation Matrix of Metrics'):
     """
     Generate, save, and display a Plotly heatmap for the correlation matrix.
 
@@ -69,19 +68,12 @@ def plot_correlation_heatmap(correlation_matrix, img_dir_path, file_name='Correl
         xaxis=dict(tickangle=45, tickmode='array'),
     )
 
-    # Create the directory if it does not exist
-    if not os.path.exists(img_dir_path):
-        os.makedirs(img_dir_path)
-
-    # Save the heatmap to a file
-    file_path = os.path.join(img_dir_path, file_name)
-    pio.write_image(fig, file_path, scale=1, width=1654, height=1174)
-
+   
     # Display the heatmap
     fig.show()
 
 
-
+# correlation heatmap betwen cluster and scaled columns
 def plot_cluster_heatmap(df, cluster_column, scaled_columns, label_column, title='Traveller Groups Heatmap'):
     """
     Create a Plotly heatmap for cluster characteristics.
@@ -142,7 +134,7 @@ def plot_cluster_heatmap(df, cluster_column, scaled_columns, label_column, title
     fig.show()
 
 
-
+# Stacked bar chart with percentages
 def plot_stacked_bar_with_percentages(df, x_col, y_col, x_label='X Axis', y_label='Y Axis', title='Stacked Bar Chart'):
     """
     Create a stacked bar chart in Plotly with percentages inside the bars, similar to the example image.
@@ -194,3 +186,85 @@ def plot_stacked_bar_with_percentages(df, x_col, y_col, x_label='X Axis', y_labe
 
     # Show the plot
     fig.show()
+
+# user behaviour accross difffernt Metrics
+def plot_user_behavior(df, x_column, y_columns, x_labels, y_axis_label, chart_title):
+    """
+    Generic function to create a Plotly bar chart for visualizing user behavior metrics.
+
+    Parameters:
+    - df (pd.DataFrame): Data frame containing the user behavior data.
+    - x_column (str): Column name for the x-axis (typically 'cluster' or similar categorical variable).
+    - y_columns (list of str): List of column names for the metrics to plot (e.g., ['total_trips', 'total_cancellations', 'conversion_rate']).
+    - x_labels (list of str): Custom labels for x-axis categories.
+    - y_axis_label (str): Label for the y-axis.
+    - chart_title (str): Title of the chart.
+    - file_path (str, optional): Path to save the image file. If None, the chart is not saved.
+
+    Returns:
+    - fig: Plotly figure object.
+    """
+    # Get unique cluster IDs and initialize the lists to store metric sums
+    unique_clusters = np.sort(df[x_column].unique())
+
+    # Store sum of each metric for each cluster
+    y_sums = {col: [df[df[x_column] == cluster][col].sum() for cluster in unique_clusters] for col in y_columns}
+    
+    # Create bar traces for each metric
+    traces = []
+    for i, col in enumerate(y_columns):
+        traces.append(go.Bar(
+            x=x_labels,
+            y=y_sums[col],
+            name=col,
+            marker=dict(color=['#636EFA', '#EF553B', '#00CC96'][i % 3]), # Different colors for bars
+            offsetgroup=i  # Ensures grouped bars
+        ))
+    
+    # Create the figure
+    fig = go.Figure(data=traces)
+    
+    # Update layout for the figure
+    fig.update_layout(
+        barmode='group',
+        title=chart_title,
+        yaxis=dict(title=y_axis_label),
+        xaxis=dict(title='Clusters', tickvals=list(range(len(x_labels))), ticktext=x_labels, tickangle=45),
+        width=1000,
+        height=600
+    )
+
+   
+    # Display the chart
+  
+    fig.show()
+
+# pie chart for cluster
+def plot_cluster_pie_chart(df):
+    # Extract cluster counts from the DataFrame
+    cluster_counts = df['cluster_label'].value_counts()
+    
+    # Prepare the data
+    labels = cluster_counts.index
+    values = cluster_counts.values
+
+    # Create the pie chart
+    fig = go.Figure(data=[go.Pie(
+        labels=labels,       # Cluster names for the legend
+        values=values,       # Count of each cluster
+        hole=0.5,            # Optional: for a donut chart; remove this for a standard pie chart
+        textinfo='percent',  # Show percentages on slices
+        insidetextorientation='radial',  # Ensures text is oriented for readability
+        showlegend=True      # Display legend with cluster names
+    )])
+
+    # Update the layout
+    fig.update_layout(
+        title_text='Distribution of Clusters',
+        legend_title='Cluster Names',  # Title for the legend
+        annotations=[dict(text='', x=0.5, y=0.5, font_size=20, showarrow=False)]
+    )
+    
+    # Show the chart
+    fig.show()
+
