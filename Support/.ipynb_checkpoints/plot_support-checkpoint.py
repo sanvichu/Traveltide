@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import numpy as np
 # To resolve the git dynamic image rendring issue, for ploty chart, i enable it as a static image. you can disable to create Dynamic charts in your notbook
-#pio.renderers.default = "png"
+pio.renderers.default = "png"
 
 
 # Plot enblow curve
