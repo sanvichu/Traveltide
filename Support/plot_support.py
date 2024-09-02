@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import numpy as np
 # To resolve the git dynamic image rendring issue, for ploty chart, i enable it as a static image. you can disable to create Dynamic charts in your notbook
-pio.renderers.default = "png"
+#pio.renderers.default = "png"
 
 
 # Plot enblow curve
@@ -268,3 +268,37 @@ def plot_cluster_pie_chart(df):
     # Show the chart
     fig.show()
 
+# Sunburst chat
+def plot_sunburst_chart(df, 
+                        cluster_column='cluster_label', 
+                        category_column='home_city', 
+                        value_column='count', 
+                        top_n=5, 
+                        chart_title='Top Preferences by Cluster'):
+    """
+    Create a generic sunburst chart to visualize the top N category preferences by cluster label.
+
+    Parameters:
+    - df (pd.DataFrame): Dataframe containing the cluster and category information.
+    - cluster_column (str): Name of the column representing the cluster label.
+    - category_column (str): Name of the column representing the category (e.g., city, country).
+    - value_column (str): Name of the column representing the value/count for sizing the chart segments.
+    - top_n (int): Number of top categories to display per cluster.
+    - chart_title (str): Title of the chart.
+    """
+    # Calculate the count of categories per cluster
+    category_counts = df.groupby([cluster_column, category_column]).size().reset_index(name=value_column)
+
+    # Find the top N categories for each cluster
+    top_categories = category_counts.groupby(cluster_column, group_keys=False).apply(lambda x: x.nlargest(top_n, value_column)).reset_index(drop=True)
+
+    # Create the sunburst chart
+    fig = px.sunburst(top_categories,
+                      path=[cluster_column, category_column],  # Hierarchy: cluster -> category
+                      values=value_column,                      # Size of each segment
+                      title=chart_title,
+                      height=800,
+                      width=1000)
+    
+    fig.update_traces(textinfo='label+percent entry')  # Display both label and percentage
+    fig.show()

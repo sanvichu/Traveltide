@@ -38,11 +38,10 @@ UserTravelSpendSummary AS (
   SELECT
     u.user_id,
 
- 
     -- Calculate ADS for hotels considering discounts and total nights
     AVG(
       CASE 
-        WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * fs.hotel_discount_amount * h.rooms * uns.total_nights)
+        WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * (1 - fs.hotel_discount_amount) * h.rooms * uns.total_nights)
         ELSE (h.hotel_per_room_usd * h.rooms * uns.total_nights)
       END
     ) AS ADS_hotel,
@@ -51,7 +50,7 @@ UserTravelSpendSummary AS (
     COALESCE(
       SUM(
         CASE 
-          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * fs.hotel_discount_amount * h.rooms * uns.total_nights)
+          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * (1 - fs.hotel_discount_amount) * h.rooms * uns.total_nights)
           ELSE (h.hotel_per_room_usd * h.rooms * uns.total_nights)
         END
       ), 0
@@ -61,7 +60,7 @@ UserTravelSpendSummary AS (
     COALESCE(
       SUM(
         CASE 
-          WHEN fs.flight_discount = TRUE THEN f.base_fare_usd * fs.flight_discount_amount 
+          WHEN fs.flight_discount = TRUE THEN f.base_fare_usd * (1 - fs.flight_discount_amount)
           ELSE f.base_fare_usd
         END
       ), 0
@@ -71,13 +70,13 @@ UserTravelSpendSummary AS (
     COALESCE(
       SUM(
         CASE 
-          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * fs.hotel_discount_amount * h.rooms * uns.total_nights)
+          WHEN fs.hotel_discount = TRUE THEN (h.hotel_per_room_usd * (1 - fs.hotel_discount_amount) * h.rooms * uns.total_nights)
           ELSE (h.hotel_per_room_usd * h.rooms * uns.total_nights)
         END
       ) + 
       SUM(
         CASE 
-          WHEN fs.flight_discount = TRUE THEN f.base_fare_usd * fs.flight_discount_amount 
+          WHEN fs.flight_discount = TRUE THEN f.base_fare_usd * (1 - fs.flight_discount_amount)
           ELSE f.base_fare_usd
         END
       ), 0
@@ -264,7 +263,7 @@ FinalQuery AS (
     u.home_city,
     EXTRACT(YEAR FROM AGE(NOW(), u.birthdate)) AS age,
     CASE
-      WHEN EXTRACT(YEAR FROM AGE(NOW(), u.birthdate)) BETWEEN 15 AND 17 THEN '<18'
+      WHEN EXTRACT(YEAR FROM AGE(NOW(), u.birthdate)) BETWEEN 15 AND 17 THEN '15-17'
       WHEN EXTRACT(YEAR FROM AGE(NOW(), u.birthdate)) BETWEEN 18 AND 24 THEN '18-24'
       WHEN EXTRACT(YEAR FROM AGE(NOW(), u.birthdate)) BETWEEN 25 AND 34 THEN '25-34'
       WHEN EXTRACT(YEAR FROM AGE(NOW(), u.birthdate)) BETWEEN 35 AND 44 THEN '35-44'
