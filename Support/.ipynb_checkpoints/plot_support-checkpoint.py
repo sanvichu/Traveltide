@@ -73,6 +73,32 @@ def plot_correlation_heatmap(correlation_matrix,  title='Correlation Matrix of M
     fig.show()
 
 
+## scatter chart
+def plot_clusters(df, x_col, y_col, cluster_col='cluster'):
+    """
+    Plots a scatter chart for visualizing clusters using Plotly.
+    
+    Parameters:
+    - df: pandas DataFrame containing the data
+    - x_col: Column name to be plotted on the x-axis
+    - y_col: Column name to be plotted on the y-axis
+    - cluster_col: Column name that contains the cluster labels (default is 'cluster_label')
+    """
+    # Create the scatter plot using Plotly
+    fig = px.scatter(
+        df,
+        x=x_col,
+        y=y_col,
+        color=cluster_col,
+        title='Cluster Visualization using K-means Segmentation',
+        width=1000,
+        height=800,
+        labels={x_col: x_col.replace('_', ' ').title(), y_col: y_col.replace('_', ' ').title()}
+    )
+
+    # Show the plot
+    fig.show()
+
 # correlation heatmap betwen cluster and scaled columns
 def plot_cluster_heatmap(df, cluster_column, scaled_columns, label_column, title='Traveller Groups Heatmap'):
     """
